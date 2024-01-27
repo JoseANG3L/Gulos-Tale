@@ -8,28 +8,23 @@ extends CharacterBody2D
 @export var platform_offset : float = 18
 @export var platform_position_offset : float = 6
 @export var object_offset : float = 35
+
 @onready var tilemap = $"../Map/TileMap2"
 @onready var object_raycast = $"ObjectDetector"
-@onready var platform_raycast = $"PlatformDetector"
-@onready var platform_raycast2 = $"PlatformDetector2"
+
+var bubble = preload("res://objects/bubble.tscn")
 
 var jump_buffer_counter : int = 0
 var cayote_counter : int = 0
 var forward : int = 1
-
 var drop_bubble : bool = true
-
-var bubble = preload("res://objects/bubble.tscn")
-
-
+var pickup : bool = false
+	
 func _physics_process(delta):
 	
-	platform_raycast.target_position = Vector2(0, platform_offset)
-	platform_raycast2.target_position = Vector2(0, platform_offset)
-	platform_raycast.position = Vector2(-platform_position_offset, 0)
-	platform_raycast2.position = Vector2(platform_position_offset, 0)
+	# var is_on_platform = platform_raycast.is_colliding() or platform_raycast2.is_colliding()
 	
-	var is_on_platform = platform_raycast.is_colliding() or platform_raycast2.is_colliding()
+	var is_on_platform = is_on_floor()
 	
 	if is_on_platform:
 		cayote_counter = cayote_time
@@ -76,6 +71,7 @@ func _physics_process(delta):
 
 	var char_pos = tilemap.local_to_map(global_position)
 	var pos = tilemap.map_to_local(Vector2i(char_pos.x + forward, char_pos.y))
+	var posup = tilemap.map_to_local(Vector2i(char_pos.x, char_pos.y - 1))
 	object_raycast.target_position = Vector2(object_offset * forward, 0)
 	
 	if Input.is_action_pressed("bubble"):
@@ -85,13 +81,31 @@ func _physics_process(delta):
 	if Input.is_action_just_released("bubble"):
 		drop_bubble = true
 		
-	if Input.is_action_pressed("bubblejump"):
+	if Input.is_action_pressed("bubblehit"):
 		if drop_bubble and not object_raycast.is_colliding():
-			spawn_bubble(pos, true)
+			spawn_bubble2(posup, forward)
 			drop_bubble = false
 		
-	
-func spawn_bubble(pos, jump = false):
+	if Input.is_action_just_released("bubblehit"):
+		drop_bubble = true
+		
+		
+func spawn_bubble(pos):
 	var b = bubble.instantiate()
 	b.global_position = pos
+	b.freeze = true
+	b.gravity_scale = 0.5
 	owner.add_child(b)
+
+func spawn_bubble2(pos, forward):
+	if pickup:
+		var b = get_child(-1)
+		b.throw(forward)
+		pickup = false
+	else:
+		var b = bubble.instantiate()
+		b.picked = true
+		#b.apply_impulse(Vector2(150 * forward, -160), Vector2(0, 0))
+		add_child(b)
+		pickup = true
+	
